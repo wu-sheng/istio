@@ -1,0 +1,50 @@
+# handler for adapter swadapter
+apiVersion: "config.istio.io/v1alpha2"
+kind: handler
+metadata:
+ name: sw
+ namespace: istio-system
+spec:
+ adapter: swadapter
+ connection:
+   address: "[::]:11800" #replaces at runtime by the test
+---
+
+# instance for template metric
+apiVersion: "config.istio.io/v1alpha2"
+kind: instance
+metadata:
+ name: swmetric
+ namespace: istio-system
+spec:
+ template: metric
+ params:
+   value: request.size | 0
+   dimensions:
+     sourceService: source.workload.name | ""
+     sourceUID: source.uid | ""
+     destinationService: destination.workload.name | ""
+     destinationUID: destination.uid | ""
+     requestMethod: request.method | ""
+     requestPath: request.path | ""
+     requestScheme: request.scheme | ""
+     requestTime: request.time
+     responseTime: response.time
+     responseDuration: response.duration
+     responseCode: response.code | 200
+     reporter: conditional((context.reporter.kind | "inbound") == "outbound", "source", "destination")
+     apiProtocol: api.protocol | ""
+---
+
+# rule to dispatch to handler sw
+apiVersion: "config.istio.io/v1alpha2"
+kind: rule
+metadata:
+ name: swmetric-rule
+ namespace: istio-system
+spec:
+ actions:
+ - handler: sw.istio-system
+   instances:
+   - swmetric
+---
